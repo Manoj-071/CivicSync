@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { globalStyles, colors } from '../styles/globalStyles';
+import { styles as globalStyles, colors } from '../styles/globalStyles'; // 👈 Renamed here too!
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterScreen() {
@@ -28,10 +28,10 @@ export default function RegisterScreen() {
 
   return (
     <LinearGradient colors={colors.bgGradient} style={{flex: 1}}>
-      <ScrollView contentContainerStyle={[globalStyles.container, {paddingTop: 60}]}>
+      <ScrollView contentContainerStyle={[globalStyles.container, {paddingTop: 60}]} showsVerticalScrollIndicator={false}>
         <View style={globalStyles.glassCard}>
-          <Text style={styles.title}>Register Profile</Text>
-          <Text style={styles.subtitle}>Provide your municipal residency metadata</Text>
+          <Text style={localStyles.title}>Register Profile</Text>
+          <Text style={localStyles.subtitle}>Provide your municipal residency metadata</Text>
 
           <TextInput style={globalStyles.input} placeholder="Full Name" placeholderTextColor={colors.textSecondary} onChangeText={t => setForm({...form, name: t})}/>
           <TextInput style={globalStyles.input} placeholder="Email" placeholderTextColor={colors.textSecondary} autoCapitalize="none" keyboardType="email-address" onChangeText={t => setForm({...form, email: t})}/>
@@ -53,7 +53,8 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+// 👈 Renamed to localStyles to match
+const localStyles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: 'bold', color: '#fff', marginBottom: 4 },
   subtitle: { color: colors.textSecondary, marginBottom: 22, fontSize: 13 }
 });

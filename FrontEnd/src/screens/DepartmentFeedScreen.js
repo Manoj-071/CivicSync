@@ -1,54 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // 🎯 Import storage engine
 import { Ionicons } from '@expo/vector-icons';
 import { styles, colors } from '../styles/globalStyles';
+import { fetchGrievances } from '../api/api';
 
-export default function DepartmentFeedScreen({ route, navigation }) {
-  // 📥 Read the parameter passed from the clicked tile card
-  const { category } = route.params;
-  
+export default function DepartmentFeedScreen({ route, navigation, ...props }) {
+  const [categoryName, setCategoryName] = useState("Department");
   const [nearbyTickets, setNearbyTickets] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Simulated user sector location context (e.g., Sector 4)
-  const USER_LOCAL_SECTOR = "Sector 4";
-
   useEffect(() => {
-    const fetchNearbyDepartmentTickets = async () => {
+    const loadDataAndFilter = async () => {
       try {
-        // 🔮 FUTURE BACKEND IMPLEMENTATION:
-        // const response = await fetch(`http://YOUR_IP:8080/api/grievances?category=${category}&sector=${USER_LOCAL_SECTOR}`);
-        // const data = await response.json();
-        // setNearbyTickets(data);
+        setLoading(true);
+        
+        // 1. Get the department selection value saved by the previous screen click event
+        let selectedDept = route?.params?.categoryName || props?.categoryName;
+        
+        if (!selectedDept) {
+          selectedDept = await AsyncStorage.getItem('SELECTED_DEPT_NAME');
+        }
+        
+        const finalDeptName = selectedDept || "Sanitation";
+        setCategoryName(finalDeptName);
+        
+        console.log(`🚀 AsyncStorage successfully fetched choice: "${finalDeptName}"`);
 
-        // 🛠️ MOCK BACKEND DATA HOOK: Simulated live community database items
-        const masterDatabaseDump = [
-          { id: "CR-99X1", category: "Sanitation", title: "Commercial garbage dump blocking back-alley", sector: "Sector 4", status: "Under Review", color: "#38bdf8", distance: "0.2 km away" },
-          { id: "CR-44L2", category: "Sanitation", title: "Public waste bin overflowing onto sidewalk", sector: "Sector 4", status: "Acknowledged", color: "#fbbf24", distance: "0.5 km away" },
-          { id: "CR-11A0", category: "Sanitation", title: "Debris clearing request post construction work", sector: "Sector 12", status: "Solved", color: "#4ade80", distance: "4.1 km away" },
-          
-          { id: "CR-77P5", category: "Roads & Bridges", title: "Deep pothole cluster forming near main intersection", sector: "Sector 4", status: "Under Review", color: "#38bdf8", distance: "0.1 km away" },
-          
-          { id: "CR-22W9", category: "Water Supply", title: "Contaminated muddy tap water reports", sector: "Sector 4", status: "Acknowledged", color: "#fbbf24", distance: "0.7 km away" },
-          
-          { id: "CR-88K4", category: "Sewage & Drains", title: "Open storm drain channel presenting safety hazard", sector: "Sector 4", status: "Under Review", color: "#38bdf8", distance: "0.3 km away" },
-        ];
+        // 2. Query your Spring Boot backend service
+        const masterDatabaseDump = await fetchGrievances();
+        
+        // 3. Complete string-to-string case-insensitive match filter mapping
+        const filteredResults = (masterDatabaseDump || []).filter(ticket => {
+          let ticketDeptString = "";
 
-        // 🎯 Logic: Filter records to match the selected category AND target user's local neighborhood sector
-        const filteredResults = masterDatabaseDump.filter(
-          ticket => ticket.category === category && ticket.sector === USER_LOCAL_SECTOR
-        );
+          if (typeof ticket.department === 'string') {
+            ticketDeptString = ticket.department;
+          } else if (ticket.department && typeof ticket.department === 'object') {
+            ticketDeptString = ticket.department.name || "";
+          }
 
+          return ticketDeptString.trim().toLowerCase() === finalDeptName.trim().toLowerCase();
+        });
+
+        console.log(`🎯 Filter matched ${filteredResults.length} records for: "${finalDeptName}"`);
         setNearbyTickets(filteredResults);
+        
       } catch (error) {
-        console.error("Failed loading community records:", error);
+        console.error("Failed loading data routing components:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchNearbyDepartmentTickets();
-  }, [category]);
+    loadDataAndFilter();
+  }, []);
+
+  const handleBackPress = () => {
+    if (navigation && navigation.goBack) {
+      navigation.goBack();
+    } else if (props.navigate) {
+      props.navigate('departments');
+    }
+  };
 
   if (loading) {
     return (
@@ -59,48 +73,52 @@ export default function DepartmentFeedScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: '#07161b', flex: 1 }]}>
-      {/* Dynamic Header displaying the current category */}
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.scrollContent, { backgroundColor: '#07161b' }]}>
       <View style={styles.screenHeaderWithBack}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ paddingRight: 10 }}>
+        <TouchableOpacity onPress={handleBackPress} style={{ paddingRight: 10 }}>
           <Ionicons name="arrow-back" size={24} color="#ffffff" />
         </TouchableOpacity>
-        <Text style={[styles.centeredScreenTitle, { flex: 1, textTransform: 'uppercase' }]}>{category} NEAR ME</Text>
+        <Text style={[styles.centeredScreenTitle, { flex: 1, textTransform: 'uppercase' }]}>{categoryName} FEED</Text>
       </View>
 
-      <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20, fontWeight: '500' }}>
-        Displaying civic incidents reported within <Text style={{ color: colors.accent }}>{USER_LOCAL_SECTOR}</Text>
+      <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 20, fontWeight: '500', paddingHorizontal: 4 }}>
+        Displaying civic incidents active under the <Text style={{ color: colors.accent }}>{categoryName}</Text> branch structure.
       </Text>
 
-      {/* Render Dynamic Filter Results */}
       {nearbyTickets.length === 0 ? (
         <View style={{ marginTop: 60, alignItems: 'center', paddingHorizontal: 20 }}>
           <Ionicons name="checkmark-circle-outline" size={50} color="#4ade80" style={{ marginBottom: 12 }} />
           <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600', textAlign: 'center' }}>All Clear!</Text>
           <Text style={{ color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginTop: 4, opacity: 0.8 }}>
-            No active {category.toLowerCase()} issues have been reported nearby.
+            No active {categoryName.toLowerCase()} issues have been found in the live registry.
           </Text>
         </View>
       ) : (
-        nearbyTickets.map((ticket) => (
-          <View key={ticket.id} style={styles.ticketCardBase}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={styles.ticketRefNumber}>ID: {ticket.id}</Text>
-              <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '600' }}>📍 {ticket.distance}</Text>
+        nearbyTickets.map((ticket) => {
+          const dynamicColor = ticket.status === "Pending" || ticket.status === "PENDING" ? "#ef4444" : ticket.status === "Solved" || ticket.status === "SOLVED" ? "#4ade80" : "#fbbf24";
+          
+          return (
+            <View key={ticket.id.toString()} style={styles.ticketCardBase}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Text style={styles.ticketRefNumber}>
+                  Reference: {ticket.ticketNumber || `CR-${ticket.id}`}
+                </Text>
+                <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '600' }}>📍 Active Tracker</Text>
+              </View>
+              
+              <Text style={[styles.ticketStatusText, { color: dynamicColor, marginTop: 4 }]}>
+                Status: {ticket.status || "Pending"}
+              </Text>
+              
+              <View style={styles.progressBarTrack}>
+                <View style={[styles.progressBarFill, { width: (ticket.status === 'Solved' || ticket.status === 'SOLVED') ? '100%' : '40%', backgroundColor: dynamicColor }]} />
+              </View>
+              
+              <Text style={styles.ticketDetailsAddress}>{ticket.title}</Text>
+              <Text style={[styles.ticketDateStamp, { color: '#94a3b8' }]}>{ticket.description}</Text>
             </View>
-            
-            <Text style={[styles.ticketStatusText, { color: ticket.color, marginTop: 4 }]}>
-              Status: {ticket.status}
-            </Text>
-            
-            <View style={styles.progressBarTrack}>
-              <View style={[styles.progressBarFill, { width: ticket.status === 'Solved' ? '100%' : '40%', backgroundColor: ticket.color }]} />
-            </View>
-            
-            <Text style={styles.ticketDetailsAddress}>{ticket.title}</Text>
-            <Text style={[styles.ticketDateStamp, { color: '#94a3b8' }]}>Location Area: {ticket.sector}</Text>
-          </View>
-        ))
+          );
+        })
       )}
     </ScrollView>
   );

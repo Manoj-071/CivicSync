@@ -16,73 +16,98 @@ import DepartmentsScreen from './src/screens/DepartmentsScreen';
 import AccountScreen from './src/screens/AccountScreen';
 
 // 🗺️ New Interactive Screen Imports
-import MapExplorerScreen from './src/screens/MapExplorerScreen';  // 👈 Added
-import FileGrievanceScreen from './src/screens/FileGrievanceScreen'; // 👈 Added
+import MapExplorerScreen from './src/screens/MapExplorerScreen';  
+import FileGrievanceScreen from './src/screens/FileGrievanceScreen'; 
+import DepartmentFeedScreen from './src/screens/DepartmentFeedScreen'; // 👈 Included from feed update!
 
 import { styles } from './src/styles/globalStyles';
 
+// ==========================================
+// 👤 MAIN CITIZEN DASHBOARD (Your Beautiful UI Layout)
+// ==========================================
 function UserDashboard() {
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [selectedCategory, setSelectedCategory] = useState(''); // 👈 Tracks department card selection
+  const [sharedLocation, setSharedLocation] = useState(null);    // 👈 Tracks GPS hardware state
   const { logoutUser, user } = useAuth();
 
-  // 🛰️ A shared state to pass captured hardware locations between screens smoothly
-  const [sharedLocation, setSharedLocation] = useState(null);
+  // 🔌 Robust Navigation Layer: Accepts multiple paths and payload parameters safely
+  const customNavigate = (screenName, params) => {
+    if (params?.category) {
+      setSelectedCategory(params.category);
+    }
+    setCurrentScreen(screenName);
+  };
 
   const renderScreenContent = () => {
     switch (currentScreen) {
       case 'home':
-        // Passing both navigator hook and location storage state setter down
-        return <HomeScreen navigate={setCurrentScreen} setSharedLocation={setSharedLocation} />;
+        return <HomeScreen navigate={customNavigate} setSharedLocation={setSharedLocation} />;
       case 'departments':
-        return <DepartmentsScreen navigate={setCurrentScreen} />;
+        return (
+          <DepartmentsScreen 
+            navigate={(dest, params) => customNavigate(dest, params)} 
+            navigation={{ navigate: customNavigate }} 
+          />
+        );
+      case 'department-feed':
+        return (
+          <DepartmentFeedScreen 
+            route={{ params: { category: selectedCategory } }} 
+            navigation={{ goBack: () => setCurrentScreen('departments') }} 
+          />
+        );
       case 'grievances':
         return <GrievancesScreen />;
       case 'account':
         return <AccountScreen onLogout={logoutUser} userEmail={user?.email} />;
       
-      // 🗺️ Added full layout view sub-routes
+      // 🗺️ Full layout view sub-routes
       case 'mapExplorer':
-        return <MapExplorerScreen navigate={setCurrentScreen} userLocation={sharedLocation} />;
+        return <MapExplorerScreen navigate={customNavigate} userLocation={sharedLocation} />;
       case 'fileGrievance':
-        return <FileGrievanceScreen navigate={setCurrentScreen} userLocation={sharedLocation} />;
+        return <FileGrievanceScreen navigate={customNavigate} userLocation={sharedLocation} />;
         
       default:
-        return <HomeScreen navigate={setCurrentScreen} setSharedLocation={setSharedLocation} />;
+        return <HomeScreen navigate={customNavigate} setSharedLocation={setSharedLocation} />;
     }
   };
 
-  // Determine if we should hide the bottom navigation tab bar (e.g., when viewing fullscreen maps)
-  const isFullscreenView = currentScreen === 'mapExplorer' || currentScreen === 'fileGrievance';
+  // Determine if we should hide the bottom navigation tab bar (slide away on maps/forms/sub-feeds)
+  const isFullscreenView = ['mapExplorer', 'fileGrievance', 'department-feed'].includes(currentScreen);
 
   return (
     <LinearGradient colors={['#103e4b', '#07161b']} style={styles.appViewContainer}>
       <StatusBar barStyle="light-content" />
-      <SafeAreaView style={[styles.appSafeAreaFrame, { paddingTop: 45 }]}>
+      <SafeAreaView style={[styles.appSafeAreaFrame, { paddingTop: 45, flex: 1 }]}>
         
-        {renderScreenContent()}
+        {/* Render Active View State Container */}
+        <View style={{ flex: 1 }}>
+          {renderScreenContent()}
+        </View>
 
-        {/* Navigation Bar - Automatically slides away on fullscreen map layers */}
+        {/* Navigation Bar - Automatically hides on fullscreen view stacks */}
         {!isFullscreenView && (
           <View style={styles.navigationTabBarBase}>
-            <TouchableOpacity style={styles.tabBarButton} onPress={() => setCurrentScreen('home')}>
+            <TouchableOpacity style={styles.tabBarButton} onPress={() => customNavigate('home')}>
               <Ionicons name="home" size={20} color={currentScreen === 'home' ? '#a5f3fc' : '#94a3b8'} />
               <Text style={[styles.tabBarLabelText, { color: currentScreen === 'home' ? '#a5f3fc' : '#94a3b8' }]}>Home</Text>
               {currentScreen === 'home' && <View style={styles.tabActiveBarPointer} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabBarButton} onPress={() => setCurrentScreen('grievances')}>
+            <TouchableOpacity style={styles.tabBarButton} onPress={() => customNavigate('grievances')}>
               <Ionicons name="folder-open" size={20} color={currentScreen === 'grievances' ? '#a5f3fc' : '#94a3b8'} />
               <Text style={[styles.tabBarLabelText, { color: currentScreen === 'grievances' ? '#a5f3fc' : '#94a3b8' }]}>Grievances</Text>
               {currentScreen === 'grievances' && <View style={styles.tabActiveBarPointer} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabBarButton} onPress={() => setCurrentScreen('departments')}>
-              <Ionicons name="grid" size={20} color={currentScreen === 'departments' ? '#a5f3fc' : '#94a3b8'} />
-              <Text style={[styles.tabBarLabelText, { color: currentScreen === 'departments' ? '#a5f3fc' : '#94a3b8' }]}>Departments</Text>
-              {currentScreen === 'departments' && <View style={styles.tabActiveBarPointer} />}
+            <TouchableOpacity style={styles.tabBarButton} onPress={() => customNavigate('departments')}>
+              <Ionicons name="grid" size={20} color={['departments', 'department-feed'].includes(currentScreen) ? '#a5f3fc' : '#94a3b8'} />
+              <Text style={[styles.tabBarLabelText, { color: ['departments', 'department-feed'].includes(currentScreen) ? '#a5f3fc' : '#94a3b8' }]}>Departments</Text>
+              {['departments', 'department-feed'].includes(currentScreen) && <View style={styles.tabActiveBarPointer} />}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.tabBarButton} onPress={() => setCurrentScreen('account')}>
+            <TouchableOpacity style={styles.tabBarButton} onPress={() => customNavigate('account')}>
               <Ionicons name="person" size={20} color={currentScreen === 'account' ? '#a5f3fc' : '#94a3b8'} />
               <Text style={[styles.tabBarLabelText, { color: currentScreen === 'account' ? '#a5f3fc' : '#94a3b8' }]}>Account</Text>
               {currentScreen === 'account' && <View style={styles.tabActiveBarPointer} />}
@@ -132,6 +157,9 @@ function NavigationRoot() {
   return userRole === 'officer' ? <OfficerDashboard /> : <UserDashboard />;
 }
 
+// ==========================================
+// 🏢 APP ROOT ENTRY POINT
+// ==========================================
 export default function App() {
   return (
     <AuthProvider>

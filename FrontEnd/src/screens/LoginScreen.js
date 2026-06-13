@@ -1,72 +1,135 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { styles as globalStyles, colors } from '../styles/globalStyles'; // 👈 Imported as globalStyles to fix collision
-import { useAuth } from '../context/AuthContext';
+import { FontAwesome } from '@expo/vector-icons';
+import axios from 'axios';
 
-export default function LoginScreen() {
+const BACKEND_URL = "http://10.227.0.200:8080/api/auth";
+
+export default function LoginScreen({ onNavigateToRegister, loginUser }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [authLoading, setAuthLoading] = useState(false);
-  const { loginUser, setIsRegistering } = useAuth();
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) return Alert.alert("Error", "Please fill in all fields.");
-    setAuthLoading(true);
+  const handleStandardLogin = async () => {
+    if (!email || !password) {
+      return Alert.alert("Missing Inputs", "Please enter your authenticated email and password.");
+    }
+    
+    setLoading(true);
     try {
-      await loginUser(email, password);
-    } catch (error) {
-      Alert.alert("Authentication Failed", error.message);
+      // 📡 1. Send Login Payload to Backend Gateway
+      const res = await axios.post(`${BACKEND_URL}/login`, { 
+        email: email.trim().toLowerCase(), 
+        password: password 
+      });
+
+      // 🔬 2. Log exact response to the Metro terminal console to trace bugs
+      console.log("Backend Login Response Payload:", res.data);
+
+      if (res.data && (res.data.error || res.data.message === "Invalid credentials")) {
+        Alert.alert("Authentication Failed", res.data.error || res.data.message || "Invalid credentials.");
+      } else if (loginUser) {
+        // 🚀 3. Hand over session context token to App.js navigation tracker
+        loginUser(res.data); 
+      }
+    } catch (err) {
+      // 🛠️ Diagnostic Breakdown: Track exactly what broke the request
+      console.error("Axios Catch Debug Log:", err);
+      
+      if (err.response) {
+        // The server answered back, but gave an error status code (like 400, 401, 403, 500)
+        Alert.alert(
+          "Server Rejected Request", 
+          err.response.data?.error || err.response.data?.message || `Error status code: ${err.response.status}`
+        );
+      } else if (err.request) {
+        // The network request left the app but never got a response back
+        Alert.alert("Server Connectivity Error", "Could not physically reach the authentication gateway service. Verify your backend server layout is up and running.");
+      } else {
+        // A native runtime exception occurred setting up the network call
+        Alert.alert("Application Error", err.message);
+      }
     } finally {
-      setAuthLoading(false);
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const mockGoogleProfileData = {
+        email: email.trim() || "citizen.oauth@gmail.com",
+        name: "Google Citizen Profile",
+        googleId: "g_99887766554433"
+      };
+
+      const res = await axios.post(`${BACKEND_URL}/google`, mockGoogleProfileData);
+      if (loginUser) loginUser(res.data);
+    } catch (err) {
+      Alert.alert("Google Auth Error", "Token handshake validation failed against Spring Boot framework.");
     }
   };
 
   return (
-    <LinearGradient colors={colors.bgGradient} style={globalStyles.container}>
-      <View style={globalStyles.glassCard}>
-        <Text style={localStyles.title}>CivicSync</Text>
-        <Text style={localStyles.subtitle}>Sign in to report or resolve local concerns</Text>
-
-        <TextInput 
-          style={globalStyles.input} 
-          placeholder="Official or Personal Email" 
-          placeholderTextColor={colors.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+    <LinearGradient colors={['#103e4b', '#07161b']} style={styles.container}>
+      <View style={{ paddingHorizontal: 24, flex: 1, justifyContent: 'center' }}>
         
-        <TextInput 
-          style={globalStyles.input} 
-          placeholder="Password" 
-          placeholderTextColor={colors.textSecondary}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <Text style={styles.title}>CIVIC SYNC LOGIN</Text>
+        <Text style={styles.subtitle}>Enter credentials to access municipal infrastructure dashboard</Text>
 
-        <TouchableOpacity style={globalStyles.primaryButton} onPress={handleLogin} disabled={authLoading}>
-          {authLoading ? <ActivityIndicator color="#fff" /> : <Text style={globalStyles.buttonText}>Sign In</Text>}
+        <View style={styles.formCard}>
+          <Text style={styles.inputLabel}>Email Address</Text>
+          <TextInput 
+            style={styles.textInput} 
+            value={email} 
+            onChangeText={setEmail} 
+            placeholder="citizen@domain.com" 
+            placeholderTextColor="#475569" 
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput 
+            style={styles.textInput} 
+            value={password} 
+            onChangeText={setPassword} 
+            secureTextEntry 
+            placeholder="••••••••" 
+            placeholderTextColor="#475569" 
+          />
+
+          <TouchableOpacity style={styles.primarySubmitButton} onPress={handleStandardLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Sign In</Text>}
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginVertical: 20, alignItems: 'center' }}>
+          <TouchableOpacity style={styles.googleOAuthButton} onPress={handleGoogleSignIn}>
+            <FontAwesome name="google" size={16} color="#fff" style={{ marginRight: 10 }} />
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Sign In with Google</Text>
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity onPress={onNavigateToRegister} style={{ marginTop: 8 }}>
+          <Text style={{ color: '#94a3b8', textAlign: 'center', fontSize: 13 }}>
+            New to CivicSync? <Text style={{ color: '#a5f3fc', fontWeight: '600' }}>Register Profile Here</Text>
+          </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[globalStyles.primaryButton, localStyles.googleBtn]}>
-          <Text style={globalStyles.buttonText}>🌐 Continue with Google</Text>
-        </TouchableOpacity>
       </View>
-
-      <TouchableOpacity onPress={() => setIsRegistering(true)}>
-        <Text style={localStyles.footerText}>Don't have a regular account? <Text style={{color: colors.accent}}>Create Account</Text></Text>
-      </TouchableOpacity>
     </LinearGradient>
   );
 }
 
-// 👈 Renamed to localStyles to prevent colliding with your theme global styles object
-const localStyles = StyleSheet.create({
-  title: { fontSize: 36, fontWeight: 'bold', color: '#fff', textAlign: 'center', marginBottom: 4 },
-  subtitle: { color: colors.textSecondary, textAlign: 'center', marginBottom: 28, fontSize: 14 },
-  googleBtn: { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: colors.glassBorder, marginTop: 12 },
-  footerText: { color: colors.textSecondary, textAlign: 'center', marginTop: 12 }
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#07161b' },
+  title: { color: '#fff', fontSize: 22, fontWeight: '700', textAlign: 'center', letterSpacing: 0.5 },
+  subtitle: { color: '#94a3b8', fontSize: 13, textAlign: 'center', marginTop: 4, marginBottom: 24 },
+  formCard: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+  inputLabel: { color: '#94a3b8', fontSize: 12, fontWeight: '600', marginBottom: 6, textTransform: 'uppercase' },
+  textInput: { backgroundColor: 'rgba(255,255,255,0.05)', color: '#fff', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', fontSize: 14, marginBottom: 16 },
+  primarySubmitButton: { backgroundColor: '#0e7490', paddingVertical: 14, borderRadius: 10, alignItems: 'center', marginTop: 4 },
+  submitButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  googleOAuthButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ea4335', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10, width: '100%', justifyContent: 'center' }
 });

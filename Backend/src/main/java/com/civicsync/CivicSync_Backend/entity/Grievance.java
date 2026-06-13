@@ -60,6 +60,18 @@ public class Grievance {
     @Column(name = "sla_deadline", nullable = false)
     private ZonedDateTime slaDeadline;
 
+    @Column(name = "citizen_photo_url")
+    private String citizenPhotoUrl;
+
+    @Column(name = "formatted_address")
+    private String formattedAddress;
+
+    @Column(name = "closure_notes", columnDefinition = "TEXT")
+    private String closureNotes;
+
+    @Column(name = "completion_photo_url")
+    private String completionPhotoUrl;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private ZonedDateTime createdAt;
 

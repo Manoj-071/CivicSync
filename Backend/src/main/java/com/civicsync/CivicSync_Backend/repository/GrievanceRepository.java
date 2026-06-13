@@ -5,10 +5,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface GrievanceRepository extends JpaRepository<Grievance, Long> {
+
+    // 🚥 ADD THIS FOR TIMELINE & OPERATION QUEUES (Fixes the compiler error)
+    List<Grievance> findByAssignedOfficerIdAndStatusIn(Long assignedOfficerId, Collection<String> statuses);
 
     // 🎯 PostGIS Boundary Intersect Lookups: Finds which ward polygon fully contains the coordinate point
     @Query(value = "SELECT id FROM tn_wards WHERE ST_Contains(geom, ST_SetSRID(ST_Point(:lng, :lat), 4326)) LIMIT 1", nativeQuery = true)

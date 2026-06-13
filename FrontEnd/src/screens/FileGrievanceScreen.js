@@ -49,11 +49,14 @@ export default function FileGrievanceScreen({ navigate, userLocation }) {
 
     setSubmitting(true);
 
+    const selectedDept = departments.find(d => d.id === selectedDeptId);
+
     // 🎯 PAYLOAD ALIGNMENT: Matches your com.civicsync.CivicSync_Backend.entity.Grievance properties
     const grievanceData = {
       title,
       description,
       departmentId: selectedDeptId, // Send numeric ID directly to Spring Boot
+      category: selectedDept ? selectedDept.name : "Sanitation",
       latitude: targetLocation.latitude,
       longitude: targetLocation.longitude,
     };

@@ -1,0 +1,6 @@
+@"
+node_modules/
+.expo/
+*.log
+Backend/target/
+"@ | Out-File -Encoding utf8 .gitignore
